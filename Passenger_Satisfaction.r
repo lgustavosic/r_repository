@@ -1,3 +1,7 @@
+install.packages("dplyr")
+install.packages("caret")
+library(dplyr)
+library(caret)
 
 DATA <- satisfaction_2015_1_
 View(DATA)
@@ -11,6 +15,7 @@ DATA
 #Outlier Flight Distance | Verificar NA's' |  Departure Delay in Minutes Arrival Delay in Minutes
 
 View(DATA)
+par(mfrow = c(1,2))
 boxplot(DATA$`Departure Delay in Minutes`,border = "darkblue")
 hist(DATA$`Departure Delay in Minutes`, breaks = 25)
 
@@ -21,8 +26,7 @@ par(mfrow = c(1,2))
 boxplot(DATA$`Flight Distance`,border = "darkblue")
 hist(DATA$`Flight Distance`, breaks = 25)
 
-install.packages("dplyr")
-library(dplyr)
+
 DATA %>% filter(`Flight Distance` <= 4000) -> DATA 
 
 summary(DATA)
@@ -45,3 +49,49 @@ summary(DF_DATA)
 DF_DATA %>% filter( (DATA$`Arrival Delay in Minutes` != is.na)) -> DF_DATA2
 na.omit(DF_DATA, DF_DATA$`Arrival Delay in Minutes`) -> DF_DATA2
 summary(DF_DATA2)
+
+DATA <- DF_DATA2
+View(unique(DATA$Satisfaction))
+
+#Substituindo os espaços por _ no nome das colunas
+DATA_BKP <- DATA
+names(DATA) <- sub(" ","_",names(DATA))
+View(DATA)
+
+#Transformando as variaveis para Dummies 
+View(DATA)
+DATA_2 <- DATA
+
+DATA_2<- as_tibble(DATA_2)
+DF_DUMMY <- dummyVars('~.',data = DATA_2, sep = '_', fullRank = T)
+DATA_2 <- as.data.frame(predict(DF_DUMMY, newdata = DATA_2))
+View(DATA_2)
+
+names(DATA_2) <- sub(" ","_",names(DATA_2))
+View(DATA_2)
+
+#Plotando os itens Histograma 
+
+hist( DATA_2$Age,
+      col = "Blue",
+      border = "white",
+      breaks = 25,
+      xlim = c(0,100),
+      xlab = "Age",
+      ylim = c(0,18000),
+      ylab = "Frequency",
+      main = "HIST. AGE"
+      )
+
+hist( DATA_2$Flight_Distance,
+      col = "Blue",
+      border = "white",
+      breaks = 25,
+      xlim = c(0,5000),
+      xlab = "Flight Distance",
+      ylim = c(0,25000),
+      ylab = "Frequency",
+      main = "HIST. Flight Distance"
+)
+
+save(DATA,DATA_2,DATA_BKP, DF_DUMMY,satisfaction_2015_1_, file = "arq_14122020.RData")
