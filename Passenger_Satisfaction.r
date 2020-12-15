@@ -1,7 +1,9 @@
 install.packages("dplyr")
 install.packages("caret")
+install.packages("rpart")
 library(dplyr)
 library(caret)
+library(rpart)
 
 DATA <- satisfaction_2015_1_
 View(DATA)
@@ -61,37 +63,67 @@ View(DATA)
 #Transformando as variaveis para Dummies 
 View(DATA)
 DATA_2 <- DATA
+View(DATA)
 
-DATA_2<- as_tibble(DATA_2)
-DF_DUMMY <- dummyVars('~.',data = DATA_2, sep = '_', fullRank = T)
-DATA_2 <- as.data.frame(predict(DF_DUMMY, newdata = DATA_2))
+
+DATA <- DATA[-c(1)]
+
+#Separando os data frames para que a coluna TARGET mantenha-se como AS IS 
+DATA_2 %>% select(1) -> DATA_2
 View(DATA_2)
 
-names(DATA_2) <- sub(" ","_",names(DATA_2))
+#Transformando os itens em DUMMIES
+DF_DUMMY <- dummyVars('~.',data = DATA, sep = '_', fullRank = T)
+DATA <- as.data.frame(predict(DF_DUMMY, newdata = DATA))
 View(DATA_2)
 
-#Plotando os itens Histograma 
+#Juntando os DataFrames
+DATA <- cbind(DATA,DATA_2)
+View(DATA)
 
-hist( DATA_2$Age,
-      col = "Blue",
-      border = "white",
-      breaks = 25,
-      xlim = c(0,100),
-      xlab = "Age",
-      ylim = c(0,18000),
-      ylab = "Frequency",
-      main = "HIST. AGE"
-      )
 
-hist( DATA_2$Flight_Distance,
-      col = "Blue",
-      border = "white",
-      breaks = 25,
-      xlim = c(0,5000),
-      xlab = "Flight Distance",
-      ylim = c(0,25000),
-      ylab = "Frequency",
-      main = "HIST. Flight Distance"
-)
+
 
 save(DATA,DATA_2,DATA_BKP, DF_DUMMY,satisfaction_2015_1_, file = "arq_14122020.RData")
+View(DATA_2)
+
+
+#ARVORE DE DECISAO
+
+#BKP
+
+DATA_BKP <- DATA
+
+
+
+set.seed(1234)
+#Criando o particionamento
+str(DATA)
+names(DATA) <- sub(" ","_",names(DATA))
+
+
+INDEX_TRAIN <- createDataPartition(DATA$Satisfaction, p=0.7 , list = F)
+TRAIN_SET <- DATA[INDEX_TRAIN,]
+TEST_SET <- DATA [-INDEX_TRAIN,]
+
+#Verificando a % de Satisfied e Nuetral/inssatisfied na base de teste e treino
+prop.table(table(TRAIN_SET$Satisfaction));
+prop.table(table(TEST_SET$Satisfaction))
+
+
+
+MDL_FIT <- rpart(Satisfaction ~ .  , 
+                 data = TRAIN_SET,
+                 method = 'class',
+                 control = rpart.control(minbucket = 10, cp = -1))
+
+
+MDL_FIT
+summary(MDL_FIT)
+par(mfrow = c(1,1))
+printcp(MDL_FIT)
+plotcp(MDL_FIT)
+
+
+save( DATA,DATA_2, DATA_BKP, INDEX_TRAIN, MDL_FIT, TEST_SET, TRAIN_SET , file = "arq_14122020.RData")
+
