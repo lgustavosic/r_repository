@@ -16,7 +16,7 @@ library(pROC)
 library(readxl)
 
 filter <- dplyr::filter
-
+select <- dplyr::select
 satisfaction_2015_1_ <- read_excel("satisfaction_2015 (1).xlsx")
 DATA <- satisfaction_2015_1_
 View(DATA)
@@ -186,6 +186,8 @@ HMeasure(TEST_SET$Satisfaction, Y_PROB_TEST)$metrics
 
 MDL_FINAL <- MDL_FIT.PRUNE
 
+DATA_OK$prob_predicted_tree  <- predict(MDL_FINAL, newdata = DATA_OK, type = 'prob')
+cbind(DATA,DATA_OK$prob_predicted_tree) -> DATA
 
 #importancia das variaveis
 round(MDL_FINAL$variable.importance,2)
@@ -375,6 +377,161 @@ REG_MDL_FINAL <- REG_MDL_FIT.STEP
 anova(REG_MDL_FINAL)
 
 
-DATA_REGLOG$prob_predicted_reglog  <- predict(REG_MDL_FIT, newdata = DATA_REGLOG, type = 'response')
+DATA_REGLOG$prob_predicted_reglog  <- predict(REG_MDL_FINAL, newdata = DATA_REGLOG, type = 'response')
 
 cbind(DATA,DATA_REGLOG$prob_predicted_reglog) -> DATA
+
+## Análise top e bottom 25%
+## Usando modelo de árvore como referência
+
+
+DATA %>%
+  filter(
+    satisfied >= 0.75 | satisfied <= 0.25
+  ) %>%
+  mutate(
+    case_when(
+      satisfied >= 0.75 ~ '>75%',
+      satisfied <= 0.25 ~ '<25%'
+    )
+  ) %>% 
+  rename(quantile=`case_when(satisfied >= 0.75 ~ ">75%", satisfied <= 0.25 ~ "<25%")`
+    
+  ) %>%
+  select(-c(25,27)) -> DATA_BIVAR
+
+
+names(DATA_BIVAR) <- sub("`","",names(DATA_BIVAR))
+names(DATA_BIVAR) <- sub("`","",names(DATA_BIVAR))
+names(DATA_BIVAR) <- sub("-","",names(DATA_BIVAR))
+
+## Partiu análise bivariada. Feature no eixo X, classe como legenda em coluna empilhada
+
+par(mfrow = c(2,3))
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Gender_Male),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Gender_Male', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Customer_Type_Loyal_Customer),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Customer_Type_Loyal', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+boxplot(Age ~ quantile, data = DATA_BIVAR,
+        main = '', ylab = 'Value', xlab = 'Age',
+        col = c('dodgerblue','dodgerblue4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Type_of_Travel_Personal_Travel),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Personal_travel', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Class_Eco),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Class_Eco', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Class_Eco_Plus),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Class_Eco_Plus', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+mtext('Bivariate Analysis - Bottom/Top 25% (1/4)', side = 3, line = -2, outer = TRUE)
+
+
+boxplot(Flight_Distance ~ quantile, data = DATA_BIVAR,
+        main = '', ylab = 'Value', xlab = 'Flight_Distance',
+        col = c('dodgerblue','dodgerblue4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Inflight_wifi_service),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Inflight_wifi', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$DepartureArrival_time_convenient),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'time_convenient', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Ease_of_Online_booking),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Online_booking', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Gate_location),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Gate_location', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Food_and_drink),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Food_and_drink', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+mtext('Bivariate Analysis - Bottom/Top 25% (2/4)', side = 3, line = -2, outer = TRUE)
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Online_boarding),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Online_boarding', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Seat_comfort),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Seat_comfort', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Inflight_entertainment),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Inflight_entertainment', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Onboard_service),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Onboard_service', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Leg_room_service),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Leg_room_service', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Baggage_handling),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Baggage_handling', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+mtext('Bivariate Analysis - Bottom/Top 25% (3/4)', side = 3, line = -2, outer = TRUE)
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Checkin_service),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Checkin_service', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Inflight_service),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Inflight_service', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+barplot(prop.table(table(DATA_BIVAR$quantile,DATA_BIVAR$Cleanliness),2),
+        main = '',
+        ylab = 'Frequency (%)', xlab = 'Cleanliness', 
+        ylim = c(0,1), col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+boxplot(Departure_Delay_in_Minutes ~ quantile, data = DATA_BIVAR,
+        main = '', ylab = 'Value (lim at 50)', xlab = 'Departure_Delay_in_Minutes',
+        ylim = c(0,50),
+        col = c('dodgerblue','dodgerblue4'), border = 'gray20')
+
+boxplot(Arrival_Delay_in_Minutes ~ quantile, data = DATA_BIVAR,
+        main = '', ylab = 'Value (lim at 50)', xlab = 'Arrival_Delay_in_Minutes',
+        ylim = c(0,50),
+        col = c('dodgerblue','dodgerblue4'), border = 'gray20')
+
+barplot(table(DATA_BIVAR$quantile),
+        main = '',
+        ylab = 'Quantity', xlab = 'Classification', 
+        col = c('chartreuse','chartreuse4'), border = 'gray20')
+
+mtext('Bivariate Analysis - Bottom/Top 25% (4/4)', side = 3, line = -2, outer = TRUE)
