@@ -10,6 +10,9 @@ library(rpart)
 library(rattle)
 library(hmeasure)
 library(pROC)
+library(readxl)
+
+satisfaction_2015_1_ <- read_excel("satisfaction_2015 (1).xlsx")
 DATA <- satisfaction_2015_1_
 View(DATA)
 
@@ -53,7 +56,7 @@ summary(DF_DATA)
 
 
 #Removemos os missing values de Minutes Arrivel Delay in Minutes
-DF_DATA %>% filter( (DATA$`Arrival Delay in Minutes` != is.na)) -> DF_DATA2
+######DF_DATA %>% filter( (DATA$`Arrival Delay in Minutes` != is.na)) -> DF_DATA2
 na.omit(DF_DATA, DF_DATA$`Arrival Delay in Minutes`) -> DF_DATA2
 summary(DF_DATA2)
 
@@ -64,9 +67,20 @@ View(unique(DATA$Satisfaction))
 DATA_BKP <- DATA
 names(DATA) <- sub(" ","_",names(DATA))
 View(DATA)
+DATA_BKP <- DATA
+names(DATA) <- sub(" ","_",names(DATA))
+View(DATA)
+DATA_BKP <- DATA
+names(DATA) <- sub(" ","_",names(DATA))
+View(DATA)
+DATA_BKP <- DATA
+names(DATA) <- sub("/","-",names(DATA))
+View(DATA)
+
+
+# Loop repetido 3 e 2 vezes para eliminar totalmente os espaços e acentos
 
 #Transformando as variaveis para Dummies 
-View(DATA)
 DATA_2 <- DATA
 View(DATA)
 
@@ -74,19 +88,22 @@ View(DATA)
 DATA <- DATA[-c(1)]
 
 #Separando os data frames para que a coluna TARGET mantenha-se como AS IS 
-DATA_2 %>% select(1) -> DATA_2
+DATA_2[c(1)] -> DATA_2
 View(DATA_2)
 
 #Transformando os itens em DUMMIES
 DF_DUMMY <- dummyVars('~.',data = DATA, sep = '_', fullRank = T)
 DATA <- as.data.frame(predict(DF_DUMMY, newdata = DATA))
-View(DATA_2)
+View(DATA)
 
 #Juntando os DataFrames
 DATA <- cbind(DATA,DATA_2)
 View(DATA)
 
+### Base apenas com features fora do questionário p/ REGLOG
+DATA[-c(8:21)] -> DATA_REGLOG
 
+## Linhas Executadas até aqui. Pular para linha 220 para regressão logística
 
 
 save(DATA,DATA_2,DATA_BKP, DF_DUMMY,satisfaction_2015_1_, file = "arq_14122020.RData")
@@ -199,4 +216,141 @@ confusionMatrix(data = Y_CLAs1, reference = Y_OBS)
 
 
 save( DATA,DATA_2, DATA_BKP, INDEX_TRAIN, MDL_FIT, TEST_SET, TRAIN_SET , file = "arq_14122020.RData")
+
+######### Regressão Logística
+
+### Linearizar variáveis.
+##### Avaliar necessidades via histograma das quantitativas
+##### Endereçar com mutate e funções
+### Separar em treino e teste
+### Gerar modelo full e stepwise e realizar treino
+### Realizar predições
+### Avaliar performance e selecionar finalista
+### Analisar importância das variáveis
+
+par(mfrow = c(2,2))
+
+hist(DATA_REGLOG$Age, breaks = 10, 
+     xlab = 'Age', main = ''
+)
+hist(DATA_REGLOG$Flight_Distance, breaks = 10, 
+     xlab = 'Flight Distance', main = ''
+)
+hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 500,
+     xlab = 'Departure Delay (min)', main = ''
+)
+hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 500,
+     xlab = 'Arrival Delay (min)', main = ''
+)
+
+mtext('Frequency Distribution', side = 3, line = -2, outer = TRUE)
+
+# Age ok. As demais precisam
+
+# Linearizar flight distance
+
+hist(DATA_REGLOG$Flight_Distance, breaks = 10, 
+     xlab = 'Original', main = ''
+)
+hist(log10(DATA_REGLOG$Flight_Distance), breaks = 10, 
+     xlab = 'Log10', main = ''
+)
+hist(log(DATA_REGLOG$Flight_Distance), breaks = 10,
+     xlab = 'Ln', main = ''
+)
+hist(DATA_REGLOG$Flight_Distance**(1/4), breaks = 10,
+     xlab = expression(sqrt('X',4)), main = ''
+)
+
+mtext('Linearization - Flight Distance', side = 3, line = -2, outer = TRUE)
+
+#Vamos de raiz quarta
+
+DATA_REGLOG %>%
+  mutate(
+    Flight_Distance =
+      Flight_Distance**(1/4)
+  ) -> DATA_REGLOG
+  
+# Linearizar Departure delay
+
+hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 100, 
+     xlab = 'Original', main = ''
+)
+hist(log10(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10, 
+     xlab = 'Log10', main = ''
+)
+hist(log(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10,
+     xlab = 'Ln', main = ''
+)
+hist((DATA_REGLOG$Departure_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
+     xlab = expression(sqrt('X',4)), main = ''
+)
+
+mtext('Linearization - Departure Delay (min)', side = 3, line = -2, outer = TRUE)
+
+#Nada é muito bom.... raiz quarta serve
+
+DATA_REGLOG %>%
+  mutate(
+    Departure_Delay_in_Minutes =
+      Departure_Delay_in_Minutes**(1/4)
+  ) -> DATA_REGLOG
+
+#Linearizar Arrival delays
+
+hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 100, 
+     xlab = 'Original', main = ''
+)
+hist(log10(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10, 
+     xlab = 'Log10', main = ''
+)
+hist(log(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10,
+     xlab = 'Ln', main = ''
+)
+hist((DATA_REGLOG$Arrival_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
+     xlab = expression(sqrt('X',4)), main = ''
+)
+
+mtext('Linearization - Arrival Delay (min)', side = 3, line = -2, outer = TRUE)
+
+#Nada é muito bom.... raiz quarta serve
+
+DATA_REGLOG %>%
+  mutate(
+    Arrival_Delay_in_Minutes =
+      (Arrival_Delay_in_Minutes+0.1)**(1/4)
+  ) -> DATA_REGLOG
+
+#feito
+
+## Separar em treino e teste
+
+set.seed(9876) # garantindo reprodutibilidade da amostra
+
+INDEX_TRAIN <- createDataPartition(DATA_REGLOG$Satisfaction, p = 0.7, list = F)
+TRAIN_SET <- DATA_REGLOG[INDEX_TRAIN, ] # base de desenvolvimento: 70%
+TEST_SET  <- DATA_REGLOG[-INDEX_TRAIN,] # base de teste: 30%
+
+# Avaliando a distribuicao da variavel resposta
+prop.table(table(TRAIN_SET$Satisfaction));prop.table(table(TEST_SET$Satisfaction))
+
+# Proporções permanecem parecidas (57/43)
+
+# Realizar treino -> criar modelo full
+
+REG_MDL_FIT <- glm(Satisfaction ~ ., data= TRAIN_SET, family = binomial(link='logit'))
+REG_MDL_FIT
+
+summary(REG_MDL_FIT)
+vif(MDL_FIT)
+
+REG_MDL_FIT.STEP <- stepAIC(REG_MDL_FIT,
+                        scope = list(lower = as.formula("Satisfaction ~ 1"),
+                                     upper = as.formula("Satisfaction ~ .")),
+                        direction = 'both', trace = TRUE)
+
+
+
+
 
