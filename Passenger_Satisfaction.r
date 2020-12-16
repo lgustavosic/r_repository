@@ -106,7 +106,6 @@ DATA[-c(8:21)] -> DATA_REGLOG
 ## Linhas Executadas até aqui. Pular para linha 220 para regressão logística
 
 
-save(DATA,DATA_2,DATA_BKP, DF_DUMMY,satisfaction_2015_1_, file = "arq_14122020.RData")
 View(DATA_2)
 
 
@@ -168,8 +167,8 @@ rpart.plot::rpart.plot(
 )
 
 
-Y_PROB_TRAIN <- predict(MDL_FIT.PRUNE, type = 'prob')
-Y_PROB_TEST <- predict(MDL_FIT.PRUNE, newdata = TEST_SET, type = 'prob')
+Y_PROB_TRAIN <- predict(MDL_FIT.PRUNE, type = 'prob')[,2]
+Y_PROB_TEST <- predict(MDL_FIT.PRUNE, newdata = TEST_SET, type = 'prob')[,2]
 head(Y_PROB_TRAIN)
 
 
@@ -196,7 +195,7 @@ Y_CLAs1 <- factor(ifelse(Y_PROB_TEST > 0.5,1,0),
                   labels = c('NO', 'YES')
                   
                   
-                  )
+)
 
 Y_CLAs2 <- factor(ifelse(Y_PROB_TEST > 0.3,1,0),
                   levels = c(0,1),
@@ -214,9 +213,6 @@ roc1 <- roc(TRAIN_SET$Satisfaction, Y_PROB_TRAIN)
 
 confusionMatrix(data = Y_CLAs1, reference = Y_OBS)
 
-
-save( DATA,DATA_2, DATA_BKP, INDEX_TRAIN, MDL_FIT, TEST_SET, TRAIN_SET , file = "arq_14122020.RData")
-
 ######### Regressão Logística
 
 ### Linearizar variáveis.
@@ -227,155 +223,153 @@ save( DATA,DATA_2, DATA_BKP, INDEX_TRAIN, MDL_FIT, TEST_SET, TRAIN_SET , file = 
 ### Realizar predições
 ### Avaliar performance e selecionar finalista
 ### Analisar importância das variáveis
-
-par(mfrow = c(2,2))
-
-hist(DATA_REGLOG$Age, breaks = 10,
-     xlab = 'Age', main = ''
-)
-hist(DATA_REGLOG$Flight_Distance, breaks = 10,
-     xlab = 'Flight Distance', main = ''
-)
-hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 500,
-     xlab = 'Departure Delay (min)', main = ''
-)
-hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 500,
-     xlab = 'Arrival Delay (min)', main = ''
-)
-
-mtext('Frequency Distribution', side = 3, line = -2, outer = TRUE)
-
-# Age ok. As demais precisam
-
-# Linearizar flight distance
-
-hist(DATA_REGLOG$Flight_Distance, breaks = 10,
-     xlab = 'Original', main = ''
-)
-hist(log10(DATA_REGLOG$Flight_Distance), breaks = 10,
-     xlab = 'Log10', main = ''
-)
-hist(log(DATA_REGLOG$Flight_Distance), breaks = 10,
-     xlab = 'Ln', main = ''
-)
-hist(DATA_REGLOG$Flight_Distance**(1/4), breaks = 10,
-     xlab = expression(sqrt('X',4)), main = ''
-)
-
-mtext('Linearization - Flight Distance', side = 3, line = -2, outer = TRUE)
-
-#Vamos de raiz quarta
-
-DATA_REGLOG %>%
-  mutate(
-    Flight_Distance =
-      Flight_Distance**(1/4)
-  ) -> DATA_REGLOG
-
-# Linearizar Departure delay
-
-hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 100,
-     xlab = 'Original', main = ''
-)
-hist(log10(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10,
-     xlab = 'Log10', main = ''
-)
-hist(log(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10,
-     xlab = 'Ln', main = ''
-)
-hist((DATA_REGLOG$Departure_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
-     xlab = expression(sqrt('X',4)), main = ''
-)
-
-mtext('Linearization - Departure Delay (min)', side = 3, line = -2, outer = TRUE)
-
-#Nada é muito bom.... raiz quarta serve
-
-DATA_REGLOG %>%
-  mutate(
-    Departure_Delay_in_Minutes =
-      Departure_Delay_in_Minutes**(1/4)
-  ) -> DATA_REGLOG
-
-#Linearizar Arrival delays
-
-hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 100,
-     xlab = 'Original', main = ''
-)
-hist(log10(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10,
-     xlab = 'Log10', main = ''
-)
-hist(log(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10,
-     xlab = 'Ln', main = ''
-)
-hist((DATA_REGLOG$Arrival_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
-     xlab = expression(sqrt('X',4)), main = ''
-)
-
-mtext('Linearization - Arrival Delay (min)', side = 3, line = -2, outer = TRUE)
-
-#Nada é muito bom.... raiz quarta serve
-
-DATA_REGLOG %>%
-  mutate(
-    Arrival_Delay_in_Minutes =
-      (Arrival_Delay_in_Minutes+0.1)**(1/4)
-  ) -> DATA_REGLOG
-
-#feito
-
-## Separar em treino e teste e manter target separada
-
-set.seed(9876) # garantindo reprodutibilidade da amostra
-
-INDEX_TRAIN <- createDataPartition(DATA_REGLOG$Satisfaction, p = 0.7, list = F)
-TRAIN_SET <- DATA_REGLOG[INDEX_TRAIN, ] # base de desenvolvimento: 70%
-TEST_SET  <- DATA_REGLOG[-INDEX_TRAIN,] # base de teste: 30%
-
-# Avaliando a distribuicao da variavel resposta
-prop.table(table(TRAIN_SET$Satisfaction));prop.table(table(TEST_SET$Satisfaction))
-
-# Proporções permanecem parecidas (57/43)
-
-# Realizar treino -> criar modelo full
-
-REG_MDL_FIT <- glm(Satisfaction ~ ., data= TRAIN_SET, family = binomial(link='logit'))
-REG_MDL_FIT
-
-summary(REG_MDL_FIT)
-vif(REG_MDL_FIT)
-
-REG_MDL_FIT.STEP <- stepAIC(REG_MDL_FIT,
-                        scope = list(lower = as.formula("Satisfaction ~ 1"),
-                                     upper = as.formula("Satisfaction ~ .")),
-                        direction = 'both', trace = TRUE)
-
-# Realizar predições
-
-Y_PROB_TRAIN <- predict(REG_MDL_FIT, type = 'response') 
-Y_PROB_TEST  <- predict(REG_MDL_FIT, newdata = TEST_SET, type = 'response')
-
-Y_PROB_TRAIN.STEP <- predict(REG_MDL_FIT.STEP, type = 'response')  
-Y_PROB_TEST.STEP  <- predict(REG_MDL_FIT.STEP, newdata = TEST_SET, type = 'response')
-
-# Avaliando performance
-
-HMeasure(TRAIN_SET$Satisfaction,Y_PROB_TRAIN)$metrics
-HMeasure(TEST_SET$Satisfaction, Y_PROB_TEST)$metrics
-
-# Regressao com stepwise
-HMeasure(TRAIN_SET$Satisfaction,Y_PROB_TRAIN.STEP)$metrics
-HMeasure(TEST_SET$Satisfaction, Y_PROB_TEST.STEP)$metrics
-
-# Definindo modelo final. Comentando as linhas de linerização (231 - 325), foi avaliado
-# a qualidade do modelo para as variáveis cruas
-REG_MDL_FINAL <- REG_MDL_FIT.STEP
-
-anova(REG_MDL_FINAL)
-
-
-DATA_REGLOG$prob_predicted  <- predict(REG_MDL_FIT, newdata = DATA_REGLOG, type = 'response')
-
-cbind(DATA,DATA_REGLOG$prob_predicted) -> DATA
-
-
+# 
+# par(mfrow = c(2,2))
+# 
+# hist(DATA_REGLOG$Age, breaks = 10,
+#      xlab = 'Age', main = ''
+# )
+# hist(DATA_REGLOG$Flight_Distance, breaks = 10,
+#      xlab = 'Flight Distance', main = ''
+# )
+# hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 500,
+#      xlab = 'Departure Delay (min)', main = ''
+# )
+# hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 500,
+#      xlab = 'Arrival Delay (min)', main = ''
+# )
+# 
+# mtext('Frequency Distribution', side = 3, line = -2, outer = TRUE)
+# 
+# # Age ok. As demais precisam
+# 
+# # Linearizar flight distance
+# 
+# hist(DATA_REGLOG$Flight_Distance, breaks = 10,
+#      xlab = 'Original', main = ''
+# )
+# hist(log10(DATA_REGLOG$Flight_Distance), breaks = 10,
+#      xlab = 'Log10', main = ''
+# )
+# hist(log(DATA_REGLOG$Flight_Distance), breaks = 10,
+#      xlab = 'Ln', main = ''
+# )
+# hist(DATA_REGLOG$Flight_Distance**(1/4), breaks = 10,
+#      xlab = expression(sqrt('X',4)), main = ''
+# )
+# 
+# mtext('Linearization - Flight Distance', side = 3, line = -2, outer = TRUE)
+# 
+# #Vamos de raiz quarta
+# 
+# DATA_REGLOG %>%
+#   mutate(
+#     Flight_Distance =
+#       Flight_Distance**(1/4)
+#   ) -> DATA_REGLOG
+# 
+# # Linearizar Departure delay
+# 
+# hist(DATA_REGLOG$Departure_Delay_in_Minutes, breaks = 100,
+#      xlab = 'Original', main = ''
+# )
+# hist(log10(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10,
+#      xlab = 'Log10', main = ''
+# )
+# hist(log(DATA_REGLOG$Departure_Delay_in_Minutes+0.1), breaks = 10,
+#      xlab = 'Ln', main = ''
+# )
+# hist((DATA_REGLOG$Departure_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
+#      xlab = expression(sqrt('X',4)), main = ''
+# )
+# 
+# mtext('Linearization - Departure Delay (min)', side = 3, line = -2, outer = TRUE)
+# 
+# #Nada é muito bom.... raiz quarta serve
+# 
+# DATA_REGLOG %>%
+#   mutate(
+#     Departure_Delay_in_Minutes =
+#       Departure_Delay_in_Minutes**(1/4)
+#   ) -> DATA_REGLOG
+# 
+# #Linearizar Arrival delays
+# 
+# hist(DATA_REGLOG$Arrival_Delay_in_Minutes, breaks = 100,
+#      xlab = 'Original', main = ''
+# )
+# hist(log10(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10,
+#      xlab = 'Log10', main = ''
+# )
+# hist(log(DATA_REGLOG$Arrival_Delay_in_Minutes+0.1), breaks = 10,
+#      xlab = 'Ln', main = ''
+# )
+# hist((DATA_REGLOG$Arrival_Delay_in_Minutes+0.1)**(1/4), breaks = 10,
+#      xlab = expression(sqrt('X',4)), main = ''
+# )
+# 
+# mtext('Linearization - Arrival Delay (min)', side = 3, line = -2, outer = TRUE)
+# 
+# #Nada é muito bom.... raiz quarta serve
+# 
+# DATA_REGLOG %>%
+#   mutate(
+#     Arrival_Delay_in_Minutes =
+#       (Arrival_Delay_in_Minutes+0.1)**(1/4)
+#   ) -> DATA_REGLOG
+# 
+# #feito
+# 
+# ## Separar em treino e teste e manter target separada
+# 
+# set.seed(9876) # garantindo reprodutibilidade da amostra
+# 
+# INDEX_TRAIN <- createDataPartition(DATA_REGLOG$Satisfaction, p = 0.7, list = F)
+# TRAIN_SET <- DATA_REGLOG[INDEX_TRAIN, ] # base de desenvolvimento: 70%
+# TEST_SET  <- DATA_REGLOG[-INDEX_TRAIN,] # base de teste: 30%
+# 
+# # Avaliando a distribuicao da variavel resposta
+# prop.table(table(TRAIN_SET$Satisfaction));prop.table(table(TEST_SET$Satisfaction))
+# 
+# # Proporções permanecem parecidas (57/43)
+# 
+# # Realizar treino -> criar modelo full
+# 
+# REG_MDL_FIT <- glm(Satisfaction ~ ., data= TRAIN_SET, family = binomial(link='logit'))
+# REG_MDL_FIT
+# 
+# summary(REG_MDL_FIT)
+# vif(REG_MDL_FIT)
+# 
+# REG_MDL_FIT.STEP <- stepAIC(REG_MDL_FIT,
+#                             scope = list(lower = as.formula("Satisfaction ~ 1"),
+#                                          upper = as.formula("Satisfaction ~ .")),
+#                             direction = 'both', trace = TRUE)
+# 
+# # Realizar predições
+# 
+# Y_PROB_TRAIN <- predict(REG_MDL_FIT, type = 'response') 
+# Y_PROB_TEST  <- predict(REG_MDL_FIT, newdata = TEST_SET, type = 'response')
+# 
+# Y_PROB_TRAIN.STEP <- predict(REG_MDL_FIT.STEP, type = 'response')  
+# Y_PROB_TEST.STEP  <- predict(REG_MDL_FIT.STEP, newdata = TEST_SET, type = 'response')
+# 
+# # Avaliando performance
+# 
+# HMeasure(TRAIN_SET$Satisfaction,Y_PROB_TRAIN)$metrics
+# HMeasure(TEST_SET$Satisfaction, Y_PROB_TEST)$metrics
+# 
+# # Regressao com stepwise
+# HMeasure(TRAIN_SET$Satisfaction,Y_PROB_TRAIN.STEP)$metrics
+# HMeasure(TEST_SET$Satisfaction, Y_PROB_TEST.STEP)$metrics
+# 
+# # Definindo modelo final. Comentando as linhas de linerização (231 - 325), foi avaliado
+# # a qualidade do modelo para as variáveis cruas
+# REG_MDL_FINAL <- REG_MDL_FIT.STEP
+# 
+# anova(REG_MDL_FINAL)
+# 
+# 
+# DATA_REGLOG$prob_predicted  <- predict(REG_MDL_FIT, newdata = DATA_REGLOG, type = 'response')
+# 
+# cbind(DATA,DATA_REGLOG$prob_predicted) -> DATA
